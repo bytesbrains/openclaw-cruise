@@ -1,0 +1,23 @@
+name: Feature request
+description: Improve the OpenClaw client for Cruise (recipe, discovery, plugin, docs)
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What is hard or missing for an OpenClaw user pointing at Cruise?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: Concrete change you want in this repo (not the Cruise gateway itself).
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance
+      description: How we would know this is done.

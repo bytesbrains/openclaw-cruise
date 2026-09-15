@@ -1,0 +1,32 @@
+name: Bug report
+description: Something in the OpenClaw → Cruise recipe or docs is wrong
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Never paste a live or demo Cruise key (`cru_…`) into an issue.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: Expected vs actual behaviour.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Base URL (demo vs prod), OpenClaw version if known, and a redacted config snippet.
+    validations:
+      required: true
+  - type: input
+    id: model-id
+    attributes:
+      label: Model / lane id
+      description: Exact id from GET /v1/models (e.g. bb/agentic-coding).
+  - type: textarea
+    id: error
+    attributes:
+      label: Error body (redacted)
+      description: Prefer error.code over HTTP status. Strip keys and tokens.

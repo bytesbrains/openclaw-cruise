@@ -1,0 +1,162 @@
+# Tag-triggered publish only — a merge to main/dev is never a release.
+#
+# Cutting a release:
+#   1. Bump package.json version on main (and CHANGELOG).
+#   2. Tag that commit: git tag v0.1.0 && git push origin v0.1.0
+#   3. This workflow builds, packs, scans the tarball, then publishes to npm
+#      via OIDC trusted publishing (and ClawHub when CLAWHUB_PUBLISH_TOKEN is set).
+#
+# workflow_dispatch defaults to dry_run=true (pack/validate only). Set dry_run
+# to false on a v* tag ref to publish without pushing a new tag.
+#
+# npm: configure Trusted Publisher on npmjs for this repo + workflow filename
+#   release.yml (no NPM_TOKEN). Optional break-glass: secrets.NPM_TOKEN.
+# Optional:
+#   CLAWHUB_PUBLISH_TOKEN — ClawHub CLI token for `clawhub package publish`
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Pack and validate without publishing"
+        type: boolean
+        default: true
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - name: Ensure npm CLI supports OIDC trusted publishing
+        # 11.5.1 is the documented minimum for npm OIDC trusted publishing.
+        run: npm install -g npm@11.5.1
+
+      - name: Install gitleaks CLI
+        run: |
+          curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.24.3/gitleaks_8.24.3_linux_x64.tar.gz \
+            | tar -xz -C /usr/local/bin gitleaks
+          gitleaks version
+
+      - name: Install
+        run: npm ci --ignore-scripts
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test
+
+      - name: Recipe check
+        run: npm run check:recipe
+
+      - name: Assert tag matches package.json version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG="$(node -p 'require("./package.json").version')"
+          if [ "$TAG" != "$PKG" ]; then
+            echo "Tag v$TAG does not match package.json version $PKG"
+            exit 1
+          fi
+          if node -p 'require("./package.json").private === true'; then
+            echo "package.json still has private:true — flip it before tagging a release"
+            exit 1
+          fi
+
+      - name: Pack and assert no secrets in the artifact
+        run: npm run pack:check
+
+      - name: Decide whether to publish
+        id: gate
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.dry_run }}" != "false" ]; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "Mode: dry_run — pack/validate only"
+            exit 0
+          fi
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "Mode: publish"
+          else
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "Mode: not a v* tag — pack/validate only"
+          fi
+
+      - name: Publish to npm
+        if: steps.gate.outputs.publish == 'true'
+        env:
+          # Prefer OIDC trusted publishing. Only set NODE_AUTH_TOKEN when the
+          # optional break-glass NPM_TOKEN secret exists — an empty value blocks OIDC.
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          # setup-node may write an empty/placeholder _authToken; that blocks OIDC
+          # and can race the break-glass env token. Strip only those empty forms —
+          # never delete a real non-empty _authToken line (and leave registry/scope
+          # lines such as the tracked legacy-peer-deps .npmrc alone).
+          for f in .npmrc "$HOME/.npmrc"; do
+            if [ -f "$f" ]; then
+              sed -i.bak -E \
+                -e '/_authToken[[:space:]]*=[[:space:]]*$/d' \
+                -e '/_authToken[[:space:]]*=[[:space:]]*\$\{NODE_AUTH_TOKEN\}[[:space:]]*$/d' \
+                "$f" || true
+              rm -f "$f.bak"
+            fi
+          done
+          if [ -n "${NPM_TOKEN:-}" ]; then
+            echo "Using break-glass NPM_TOKEN"
+            export NODE_AUTH_TOKEN="$NPM_TOKEN"
+          else
+            echo "Using npm OIDC trusted publishing (no NPM_TOKEN)"
+            unset NODE_AUTH_TOKEN || true
+          fi
+          # Trusted publishing attaches provenance automatically; --provenance
+          # remains fine for the token fallback path.
+          npm publish --access public --provenance
+
+      - name: Publish to ClawHub from the scanned npm pack (optional)
+        if: steps.gate.outputs.publish == 'true'
+        env:
+          # CLI auth env; value comes from repo secret CLAWHUB_PUBLISH_TOKEN
+          CLAWHUB_TOKEN: ${{ secrets.CLAWHUB_PUBLISH_TOKEN }}
+        run: |
+          if [ -z "${CLAWHUB_TOKEN:-}" ]; then
+            echo "CLAWHUB_PUBLISH_TOKEN not set — skipping ClawHub publish (npm-only release)"
+            exit 0
+          fi
+          npm install -g clawhub
+          TARBALL="$(npm pack --silent | tail -n1)"
+          case "$TARBALL" in
+            *.tgz) ;;
+            *) echo "unexpected pack output: $TARBALL"; exit 1 ;;
+          esac
+          # Basename only — refuse path components (defense in depth; npm pack is local).
+          case "$TARBALL" in
+            */*|*..*) echo "refusing unsafe tarball path: $TARBALL"; exit 1 ;;
+          esac
+          EXTRACT="$(mktemp -d)"
+          tar -xzf "$TARBALL" -C "$EXTRACT"
+          gitleaks detect --source "$EXTRACT/package" --no-git --redact --no-banner --config .gitleaks.toml
+          clawhub package validate "$EXTRACT/package"
+          clawhub package publish "$EXTRACT/package" --family code-plugin --owner bytesbrains
+          rm -rf "$EXTRACT" "$TARBALL"

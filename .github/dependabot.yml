@@ -1,4 +1,4 @@
-# Keep Actions current. Public repo — Dependabot PRs are free.
+# Keep Actions and npm current. Public repo — Dependabot PRs are free.
 version: 2
 updates:
   - package-ecosystem: github-actions
@@ -10,5 +10,17 @@ updates:
       - dependencies
     groups:
       github-actions:
+        patterns:
+          - "*"
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+    groups:
+      npm:
         patterns:
           - "*"

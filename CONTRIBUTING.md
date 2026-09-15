@@ -22,28 +22,26 @@ git clone https://github.com/bytesbrains/openclaw-cruise.git
 cd openclaw-cruise
 ```
 
-`npm ci` (when a `package.json` is present) runs `prepare`, which points `core.hooksPath` at
-`.githooks/`. **pre-commit** runs `gitleaks protect` on the staged diff; **pre-push** runs
-`gitleaks detect` over full history — both with `.gitleaks.toml` (Cruise key shapes included).
-Those hooks require [gitleaks](https://github.com/gitleaks/gitleaks) (`brew install gitleaks`)
-and fail closed if it is missing — on purpose.
+`npm ci` runs `prepare`, which points `core.hooksPath` at `.githooks/`. **pre-commit**
+runs `gitleaks protect` on the staged diff; **pre-push** runs `gitleaks detect` over full
+history — both with `.gitleaks.toml` (Cruise key shapes included). Those hooks require
+[gitleaks](https://github.com/gitleaks/gitleaks) (`brew install gitleaks`) and fail closed
+if it is missing — on purpose.
 
-Until there is a Node package here, enable the hooks once after clone:
-
-```sh
-git config core.hooksPath .githooks
-```
+Published package: [`@bytesbrains/openclaw-cruise-provider`](https://www.npmjs.com/package/@bytesbrains/openclaw-cruise-provider)
+([ClawHub](https://clawhub.ai/bytesbrains/plugins/openclaw-cruise-provider)).
 
 ## Checks
 
 ```sh
-npm run secrets:scan   # when package scripts exist
-# or:
-gitleaks detect --source . --redact --no-banner --config .gitleaks.toml
+npm run build          # TypeScript → dist/
+npm test               # vitest projection tests
+npm run check:recipe   # validates examples/openclaw.json5
+npm run secrets:scan   # gitleaks secrets scan (requires gitleaks on PATH)
 ```
 
 CI runs the secrets scan on every pull request and on pushes to `main` / `dev`. The required
-status check is named `check`.
+status check is named `check`. Agent-oriented project notes live in [`AGENT.md`](AGENT.md).
 
 ## Trying the recipe
 
@@ -56,5 +54,15 @@ status check is named `check`.
 
 ## Releasing (maintainers)
 
-A release is a **tag**, not a merge — same rule as the other Cruise public clients. Cut a tag
-only when the README / plugin artifact you intend to ship is on `main` and `check` is green.
+A release is a **tag**, not a merge — same rule as the other Cruise public clients.
+
+1. On `main`, bump `package.json` `version` and update `CHANGELOG.md`.
+2. Ensure `check` and `plugin` CI are green.
+3. Tag and push: `git tag vX.Y.Z && git push origin vX.Y.Z`.
+4. Workflow `.github/workflows/release.yml` runs `npm run pack:check`, then publishes to npm
+   via OIDC Trusted Publisher (optional break-glass `NPM_TOKEN`) and optionally ClawHub
+   (`CLAWHUB_PUBLISH_TOKEN`). `clawhub-publish` uses the same ClawHub secret for the official
+   Hub reusable workflow.
+
+Never publish from a merge alone. Verify the packed tarball locally with
+`npm run pack:check` before tagging.

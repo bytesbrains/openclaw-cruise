@@ -1,8 +1,7 @@
-# Secrets scan on every PR and on main/dev.
+# Secrets scan + plugin build/test on every PR and on main/dev.
 #
-# There is no publish workflow yet — a Cruise OpenClaw provider plugin (ClawHub /
-# npm) will get its own tag-triggered release job when that artifact exists.
-# Until then, the only required check is that no credential entered the tree.
+# Publish (ClawHub / npm) stays tag-triggered only — see issue #3. A merge is
+# not a release.
 name: ci
 
 on:
@@ -24,11 +23,37 @@ jobs:
     timeout-minutes: 5
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
       - name: Secrets scan
-        uses: gitleaks/gitleaks-action@v3
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  plugin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+          cache: npm
+
+      # openclaw's preinstall enforces a narrow Node range; --ignore-scripts is
+      # enough for our compile + unit tests (peer types / runtime helpers only).
+      - name: Install
+        run: npm ci --ignore-scripts
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test
+
+      - name: Recipe check
+        run: npm run check:recipe
