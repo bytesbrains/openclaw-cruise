@@ -23,9 +23,13 @@
     "prepare": "git config core.hooksPath .githooks || true",
     "build": "tsc -p tsconfig.json",
     "prepack": "npm run build",
+    "pack:check": "node scripts/pack-check.mjs",
     "test": "vitest run",
     "check:recipe": "node scripts/check-recipe.mjs",
     "secrets:scan": "gitleaks detect --source . --redact --no-banner --config .gitleaks.toml"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "peerDependencies": {
     "openclaw": ">=2026.7.2-beta.7"

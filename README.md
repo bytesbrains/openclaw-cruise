@@ -35,8 +35,12 @@ The plugin (`@bytesbrains/openclaw-cruise-provider`) refreshes the model list fr
 (setup / no-auth fallback); live discovery replaces them when a key is present.
 
 ```sh
-# From a published release (when tagged — see issue #3), or from this checkout:
+# From this checkout (works today — package is still private until the first tag):
+npm run build
 openclaw plugins install .
+
+# After the first tagged release (see Releases below):
+openclaw plugins install npm:@bytesbrains/openclaw-cruise-provider
 # or: openclaw plugins install clawhub:@bytesbrains/openclaw-cruise-provider
 
 export CRUISE_API_KEY=cru_demo_…   # or cru_live_…
@@ -46,9 +50,26 @@ openclaw models list --provider cruise
 
 Onboarding can also take `--cruise-api-key`. Default production base URL is
 `https://cruise.bytesbrains.net/v1`; point `models.providers.cruise.baseUrl` at
-`https://cruise-demo.bytesbrains.net/v1` for the demo (explicit base URL overrides are allowed).
+`https://cruise-demo.bytesbrains.net/v1` for the demo (must be `https` under
+`*.bytesbrains.net`).
 
-Until npm/ClawHub publish ships, install from this git checkout after `npm run build`.
+**Secrets never enter the published artifact** — only `dist/`, `openclaw.plugin.json`,
+README, and the license. `npm run pack:check` (and gitleaks with `.gitleaks.toml` on the
+extracted tarball) fail the release if a Cruise key shape appears. Keys stay in the
+environment.
+
+### Releases (maintainers)
+
+A release is a **tag**, not a merge. Bump `package.json` version (and drop `"private": true`),
+update `CHANGELOG.md`, merge to `main`, then:
+
+```sh
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+GitHub Actions workflow `release` packs the tarball (`npm run pack:check`), publishes to npm
+when `NPM_TOKEN` is set, and optionally to ClawHub when `CLAWHUB_TOKEN` is set.
 
 ---
 
