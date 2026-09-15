@@ -7,7 +7,7 @@
 # One-time setup before the first tag:
 #   1. Claim/create @bytesbrains on https://clawhub.ai (matches package scope).
 #   2. clawhub login && clawhub package publish . --dry-run --owner bytesbrains
-#   3. Repo secret CLAWHUB_TOKEN
+#   3. Repo secret CLAWHUB_PUBLISH_TOKEN (from local .env / clawhub.ai)
 #   4. Drop package.json "private": true, bump version, tag vX.Y.Z on main
 name: clawhub-publish
 
@@ -55,7 +55,7 @@ jobs:
       source_ref: ${{ github.ref_name }}
       wait_for_publication: true
     secrets:
-      clawhub_token: ${{ secrets.CLAWHUB_TOKEN }}
+      clawhub_token: ${{ secrets.CLAWHUB_PUBLISH_TOKEN }}
 
   publish-dispatch:
     if: github.event_name == 'workflow_dispatch'
@@ -69,4 +69,4 @@ jobs:
       source_ref: ${{ github.ref_name }}
       wait_for_publication: true
     secrets:
-      clawhub_token: ${{ secrets.CLAWHUB_TOKEN }}
+      clawhub_token: ${{ secrets.CLAWHUB_PUBLISH_TOKEN }}

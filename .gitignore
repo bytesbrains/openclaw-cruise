@@ -1,5 +1,5 @@
-# Secrets never enter this repo. A Cruise key belongs in the environment or a
-# secret manager on the machine that holds it — never in git.
+# Secrets never enter this repo (Cruise keys, CLAWHUB_PUBLISH_TOKEN, etc.).
+# Keep them in the environment, a secret manager, or a local .env — never in git.
 .env
 .env.*
 !.env.example
