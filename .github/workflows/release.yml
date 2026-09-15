@@ -49,7 +49,8 @@ jobs:
           registry-url: https://registry.npmjs.org
 
       - name: Ensure npm CLI supports OIDC trusted publishing
-        run: npm install -g npm@latest
+        # 11.5.1 is the documented minimum for npm OIDC trusted publishing.
+        run: npm install -g npm@11.5.1
 
       - name: Install gitleaks CLI
         run: |
@@ -109,19 +110,25 @@ jobs:
           # optional break-glass NPM_TOKEN secret exists — an empty value blocks OIDC.
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
+          # setup-node may write an empty/placeholder _authToken; that blocks OIDC
+          # and can race the break-glass env token. Strip only those empty forms —
+          # never delete a real non-empty _authToken line (and leave registry/scope
+          # lines such as the tracked legacy-peer-deps .npmrc alone).
+          for f in .npmrc "$HOME/.npmrc"; do
+            if [ -f "$f" ]; then
+              sed -i.bak -E \
+                -e '/_authToken[[:space:]]*=[[:space:]]*$/d' \
+                -e '/_authToken[[:space:]]*=[[:space:]]*\$\{NODE_AUTH_TOKEN\}[[:space:]]*$/d' \
+                "$f" || true
+              rm -f "$f.bak"
+            fi
+          done
           if [ -n "${NPM_TOKEN:-}" ]; then
             echo "Using break-glass NPM_TOKEN"
             export NODE_AUTH_TOKEN="$NPM_TOKEN"
           else
             echo "Using npm OIDC trusted publishing (no NPM_TOKEN)"
             unset NODE_AUTH_TOKEN || true
-            # setup-node may leave an empty _authToken in .npmrc; that blocks OIDC.
-            for f in .npmrc "$HOME/.npmrc"; do
-              if [ -f "$f" ]; then
-                sed -i.bak '/_authToken/d' "$f" || true
-                rm -f "$f.bak"
-              fi
-            done
           fi
           # Trusted publishing attaches provenance automatically; --provenance
           # remains fine for the token fallback path.
