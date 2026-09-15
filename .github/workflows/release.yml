@@ -4,15 +4,15 @@
 #   1. Bump package.json version on main (and CHANGELOG); drop "private": true.
 #   2. Tag that commit: git tag v0.1.0 && git push origin v0.1.0
 #   3. This workflow builds, packs, scans the tarball, then publishes to npm
-#      (and ClawHub when CLAWHUB_TOKEN is set).
+#      (and ClawHub when CLAWHUB_PUBLISH_TOKEN is set).
 #
 # workflow_dispatch defaults to dry_run=true (pack/validate only). Set dry_run
 # to false on a v* tag ref to publish without pushing a new tag.
 #
 # Required secrets:
-#   NPM_TOKEN     — npm automation token with publish rights for @bytesbrains
+#   NPM_TOKEN — npm automation token with publish rights for @bytesbrains
 # Optional:
-#   CLAWHUB_TOKEN — ClawHub CLI token for `clawhub package publish`
+#   CLAWHUB_PUBLISH_TOKEN — ClawHub CLI token for `clawhub package publish`
 name: release
 
 on:
@@ -27,7 +27,7 @@ on:
         default: true
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: publish-${{ github.ref }}
   cancel-in-progress: false
 
 permissions:
@@ -113,10 +113,11 @@ jobs:
       - name: Publish to ClawHub from the scanned npm pack (optional)
         if: steps.gate.outputs.publish == 'true'
         env:
-          CLAWHUB_TOKEN: ${{ secrets.CLAWHUB_TOKEN }}
+          # CLI auth env; value comes from repo secret CLAWHUB_PUBLISH_TOKEN
+          CLAWHUB_TOKEN: ${{ secrets.CLAWHUB_PUBLISH_TOKEN }}
         run: |
           if [ -z "${CLAWHUB_TOKEN:-}" ]; then
-            echo "CLAWHUB_TOKEN not set — skipping ClawHub publish (npm-only release)"
+            echo "CLAWHUB_PUBLISH_TOKEN not set — skipping ClawHub publish (npm-only release)"
             exit 0
           fi
           npm install -g clawhub
