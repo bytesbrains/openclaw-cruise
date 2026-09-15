@@ -1,0 +1,34 @@
+# Secrets scan on every PR and on main/dev.
+#
+# There is no publish workflow yet — a Cruise OpenClaw provider plugin (ClawHub /
+# npm) will get its own tag-triggered release job when that artifact exists.
+# Until then, the only required check is that no credential entered the tree.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main, dev]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Secrets scan
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

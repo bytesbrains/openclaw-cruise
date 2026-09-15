@@ -1,0 +1,15 @@
+BytesBrains Cruise for OpenClaw
+© 2026 BYTESBRAINS PTE. LTD. All rights reserved.
+
+This material is provided for use with the BytesBrains Cruise service and OpenClaw.
+
+You may use the recipes and examples on any machine you control to point OpenClaw at Cruise.
+
+You may not present a copy of this work as your own, or redistribute a modified copy under the
+BytesBrains or Cruise name. Nothing here grants any right to the Cruise service itself, whose
+use is governed by the terms of service of BytesBrains Pte. Ltd.
+
+THE MATERIAL IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
+BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NON-INFRINGEMENT. IN NO EVENT SHALL BYTESBRAINS PTE. LTD. BE LIABLE FOR ANY CLAIM, DAMAGES OR
+OTHER LIABILITY ARISING FROM OR IN CONNECTION WITH THIS MATERIAL OR ITS USE.

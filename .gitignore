@@ -1,0 +1,17 @@
+# Secrets never enter this repo. A Cruise key belongs in the environment or a
+# secret manager on the machine that holds it — never in git.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.json
+openclaw.json
+openclaw.json5
+!examples/openclaw.json5
+
+*.log
+.DS_Store
+node_modules/
+dist/
+coverage/

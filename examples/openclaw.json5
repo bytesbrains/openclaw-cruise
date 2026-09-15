@@ -1,0 +1,58 @@
+// Starter OpenClaw config fragment for BytesBrains Cruise.
+//
+// Copy the `models.providers.cruise` block (and the env var) into your OpenClaw
+// config. Do not commit a real key — use the environment.
+//
+// Docs: https://docs.openclaw.ai/concepts/model-providers
+// Product: https://bytesbrains.com/cruise
+{
+  env: {
+    vars: {
+      // Prefer exporting CRUISE_API_KEY in the shell / secret manager instead.
+      // A cru_demo_ key points at the demo host below.
+      CRUISE_API_KEY: "cru_demo_…",
+    },
+  },
+  agents: {
+    defaults: {
+      // Prefer a Cruise lane for agent work. Pin a specific model id only when
+      // you need that vendor. Ids come from GET /v1/models for your key.
+      model: { primary: "cruise/bb/agentic-coding" },
+      models: {
+        "cruise/bb/agentic-coding": { alias: "Cruise agentic coding" },
+        "cruise/bb/chat-assistant": { alias: "Cruise chat" },
+      },
+    },
+  },
+  models: {
+    mode: "merge",
+    providers: {
+      cruise: {
+        // Demo first. Production: https://cruise.bytesbrains.net/v1
+        baseUrl: "https://cruise-demo.bytesbrains.net/v1",
+        apiKey: "${CRUISE_API_KEY}",
+        api: "openai-completions",
+        models: [
+          {
+            id: "bb/agentic-coding",
+            name: "Cruise agentic coding (lane)",
+            reasoning: true,
+            input: ["text"],
+            cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+            contextWindow: 128000,
+            maxTokens: 8192,
+          },
+          {
+            id: "bb/chat-assistant",
+            name: "Cruise chat assistant (lane)",
+            reasoning: false,
+            input: ["text"],
+            cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+            contextWindow: 128000,
+            maxTokens: 8192,
+          },
+        ],
+      },
+    },
+  },
+}

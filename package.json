@@ -1,0 +1,22 @@
+{
+  "name": "openclaw-cruise",
+  "version": "0.0.1",
+  "private": true,
+  "description": "BytesBrains Cruise for OpenClaw: recipe and (soon) provider plugin.",
+  "license": "SEE LICENSE IN LICENSE.txt",
+  "homepage": "https://bytesbrains.com/cruise",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bytesbrains/openclaw-cruise.git"
+  },
+  "bugs": {
+    "url": "https://github.com/bytesbrains/openclaw-cruise/issues"
+  },
+  "scripts": {
+    "prepare": "git config core.hooksPath .githooks || true",
+    "secrets:scan": "gitleaks detect --source . --redact --no-banner --config .gitleaks.toml"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
