@@ -8,7 +8,7 @@
 #   1. Claim/create @bytesbrains on https://clawhub.ai (matches package scope).
 #   2. clawhub login && clawhub package publish . --dry-run --owner bytesbrains
 #   3. Repo secret CLAWHUB_PUBLISH_TOKEN (from local .env / clawhub.ai)
-#   4. Drop package.json "private": true, bump version, tag vX.Y.Z on main
+#   4. Bump version, tag vX.Y.Z on main
 #
 # Pin is the peeled commit for tag v0.23.3 (not a movable tag).
 name: clawhub-publish
