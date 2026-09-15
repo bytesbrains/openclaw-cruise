@@ -4,13 +4,13 @@
 #   1. Bump package.json version on main (and CHANGELOG).
 #   2. Tag that commit: git tag v0.1.0 && git push origin v0.1.0
 #   3. This workflow builds, packs, scans the tarball, then publishes to npm
-#      (and ClawHub when CLAWHUB_PUBLISH_TOKEN is set).
+#      via OIDC trusted publishing (and ClawHub when CLAWHUB_PUBLISH_TOKEN is set).
 #
 # workflow_dispatch defaults to dry_run=true (pack/validate only). Set dry_run
 # to false on a v* tag ref to publish without pushing a new tag.
 #
-# Required secrets:
-#   NPM_TOKEN — npm automation token with publish rights for @bytesbrains
+# npm: configure Trusted Publisher on npmjs for this repo + workflow filename
+#   release.yml (no NPM_TOKEN). Optional break-glass: secrets.NPM_TOKEN.
 # Optional:
 #   CLAWHUB_PUBLISH_TOKEN — ClawHub CLI token for `clawhub package publish`
 name: release
@@ -47,6 +47,10 @@ jobs:
           node-version: "24"
           cache: npm
           registry-url: https://registry.npmjs.org
+
+      - name: Ensure npm CLI supports OIDC trusted publishing
+        # 11.5.1 is the documented minimum for npm OIDC trusted publishing.
+        run: npm install -g npm@11.5.1
 
       - name: Install gitleaks CLI
         run: |
@@ -102,12 +106,32 @@ jobs:
       - name: Publish to npm
         if: steps.gate.outputs.publish == 'true'
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # Prefer OIDC trusted publishing. Only set NODE_AUTH_TOKEN when the
+          # optional break-glass NPM_TOKEN secret exists — an empty value blocks OIDC.
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
-            echo "NPM_TOKEN secret is not set — cannot publish"
-            exit 1
+          # setup-node may write an empty/placeholder _authToken; that blocks OIDC
+          # and can race the break-glass env token. Strip only those empty forms —
+          # never delete a real non-empty _authToken line (and leave registry/scope
+          # lines such as the tracked legacy-peer-deps .npmrc alone).
+          for f in .npmrc "$HOME/.npmrc"; do
+            if [ -f "$f" ]; then
+              sed -i.bak -E \
+                -e '/_authToken[[:space:]]*=[[:space:]]*$/d' \
+                -e '/_authToken[[:space:]]*=[[:space:]]*\$\{NODE_AUTH_TOKEN\}[[:space:]]*$/d' \
+                "$f" || true
+              rm -f "$f.bak"
+            fi
+          done
+          if [ -n "${NPM_TOKEN:-}" ]; then
+            echo "Using break-glass NPM_TOKEN"
+            export NODE_AUTH_TOKEN="$NPM_TOKEN"
+          else
+            echo "Using npm OIDC trusted publishing (no NPM_TOKEN)"
+            unset NODE_AUTH_TOKEN || true
           fi
+          # Trusted publishing attaches provenance automatically; --provenance
+          # remains fine for the token fallback path.
           npm publish --access public --provenance
 
       - name: Publish to ClawHub from the scanned npm pack (optional)

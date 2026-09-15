@@ -63,8 +63,9 @@ A release is a **tag**, not a merge — same rule as the other Cruise public cli
 2. Ensure `check` and `plugin` CI are green.
 3. Tag and push: `git tag vX.Y.Z && git push origin vX.Y.Z`.
 4. Workflow `.github/workflows/release.yml` runs `npm run pack:check`, then publishes to npm
-   (`NPM_TOKEN`) and optionally ClawHub (`CLAWHUB_PUBLISH_TOKEN`). `clawhub-publish` uses the
-   same ClawHub secret for the official Hub reusable workflow.
+   via OIDC Trusted Publisher (optional break-glass `NPM_TOKEN`) and optionally ClawHub
+   (`CLAWHUB_PUBLISH_TOKEN`). `clawhub-publish` uses the same ClawHub secret for the official
+   Hub reusable workflow.
 
 Never publish from a merge alone. Verify the packed tarball locally with
 `npm run pack:check` before tagging.
