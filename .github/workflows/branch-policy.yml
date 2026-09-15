@@ -1,0 +1,35 @@
+# Branch flow: feature/fix/dependency PRs → dev; release PR dev → main; tag main.
+#
+# `base-branch` is a required status check on main, so a PR into main from any
+# branch other than this repo's dev cannot merge. release.yml separately refuses
+# a v* tag whose commit is not on main.
+name: branch-policy
+
+on:
+  pull_request:
+    branches: [main]
+    # `edited` re-runs the check when a PR is retargeted onto main.
+    types: [opened, reopened, synchronize, edited]
+
+permissions: {}
+
+jobs:
+  base-branch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+
+    steps:
+      - name: Only dev may open a PR into main
+        env:
+          # Pass through env, never interpolate into the script: branch names are
+          # attacker-controlled on forks.
+          HEAD_REF: ${{ github.head_ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+        run: |
+          if [ "$HEAD_REF" = "dev" ] && [ "$HEAD_REPO" = "$GITHUB_REPOSITORY" ]; then
+            echo "Release PR from $GITHUB_REPOSITORY:dev — allowed"
+            exit 0
+          fi
+          echo "main only accepts the release PR from dev (got $HEAD_REPO:$HEAD_REF)."
+          echo "Retarget this PR onto dev; it reaches main with the next release."
+          exit 1
