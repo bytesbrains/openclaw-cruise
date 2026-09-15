@@ -1,7 +1,7 @@
 {
   "id": "cruise",
   "name": "BytesBrains Cruise",
-  "description": "OpenClaw provider plugin for BytesBrains Cruise — live model discovery from GET /v1/models.",
+  "description": "OpenClaw provider plugin for BytesBrains Cruise — live model discovery from GET /v1/models. Manifest model rows are offline seeds only; live auth replaces costs and windows.",
   "activation": {
     "onStartup": false
   },
@@ -84,6 +84,7 @@
   "configSchema": {
     "type": "object",
     "additionalProperties": false,
-    "properties": {}
+    "properties": {},
+    "$comment": "Plugin-owned settings only (plugins.entries.cruise.config). Provider baseUrl lives under models.providers.cruise and is not validated by this schema."
   }
 }

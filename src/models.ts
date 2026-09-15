@@ -1,5 +1,9 @@
 /**
  * Cruise model catalog: static seeds, live GET /v1/models projection, dynamic ids.
+ *
+ * Manifest `modelCatalog.models` rows are **offline seeds only** — live discovery
+ * replaces them when auth works. Costs/windows on seeds are placeholders, not a
+ * frozen catalogue of what the key can reach.
  */
 import type { ProviderRuntimeModel } from "openclaw/plugin-sdk/plugin-entry";
 import type {
@@ -61,6 +65,31 @@ export function buildStaticCruiseModels(): ModelDefinitionConfig[] {
   return CRUISE_MODEL_CATALOG.map(fromManifestRow);
 }
 
+/**
+ * Only HTTPS hosts under bytesbrains.net (prod, demo, future enterprise).
+ * Rejects loopback / private / arbitrary hosts so a tampered config cannot SSRF.
+ * Invalid or disallowed values fall back to production.
+ */
+export function resolveAllowedCruiseBaseUrl(baseUrl?: string): string {
+  const candidate = (baseUrl ?? "").trim() || CRUISE_BASE_URL;
+  try {
+    const url = new URL(candidate);
+    if (url.protocol !== "https:") {
+      return CRUISE_BASE_URL;
+    }
+    const host = url.hostname.toLowerCase();
+    const allowed =
+      host === "bytesbrains.net" ||
+      host.endsWith(".bytesbrains.net");
+    if (!allowed) {
+      return CRUISE_BASE_URL;
+    }
+    return candidate.replace(/\/+$/, "");
+  } catch {
+    return CRUISE_BASE_URL;
+  }
+}
+
 type CruiseLiveModelRow = {
   id?: unknown;
   object?: unknown;
@@ -103,12 +132,15 @@ function readCruisePricing(value: unknown): {
   input?: number;
   output?: number;
   cacheRead?: number;
+  /** True when `pricing` was a non-null object (even if rates are missing). */
+  present: boolean;
 } {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return {};
+    return { present: false };
   }
   const pricing = value as Record<string, unknown>;
   return {
+    present: true,
     input: microsToDollarsPerMtok(pricing.input_micros_per_mtok),
     output: microsToDollarsPerMtok(pricing.output_micros_per_mtok),
     cacheRead: microsToDollarsPerMtok(pricing.cached_input_micros_per_mtok),
@@ -133,6 +165,16 @@ function laneDisplayName(ext: CruiseExtension, id: string): string {
   return id;
 }
 
+function resolveReasoning(ext: CruiseExtension | undefined, fallback?: ModelDefinitionConfig): boolean {
+  const isLane = ext?.lane === true;
+  const job = typeof ext?.job === "string" ? ext.job.trim() : "";
+  // Live lane job wins over a stale seed flag (issue #2: do not freeze catalogue semantics).
+  if (isLane && job) {
+    return REASONING_LANE_JOBS.has(job);
+  }
+  return fallback?.reasoning ?? false;
+}
+
 function projectLiveModel(
   row: CruiseLiveModelRow,
   fallback: ModelDefinitionConfig | undefined,
@@ -146,18 +188,21 @@ function projectLiveModel(
   }
 
   const ext = readCruiseExtension(row);
-  // Chat inference only for v1. Image/speech/embedding rows are other OpenClaw surfaces.
-  const modality = typeof ext?.modality === "string" ? ext.modality.trim().toLowerCase() : "";
-  if (modality && modality !== "chat") {
-    return undefined;
-  }
   // Rows without x-cruise are unknown — keep only if a static seed already trusts the id.
   if (!ext && !fallback) {
     return undefined;
   }
 
+  // Chat inference only for v1. Require an explicit chat modality when x-cruise is present
+  // (missing modality must not default to chat — image/speech rows could omit it).
+  if (ext) {
+    const modality = typeof ext.modality === "string" ? ext.modality.trim().toLowerCase() : "";
+    if (modality !== "chat") {
+      return undefined;
+    }
+  }
+
   const isLane = ext?.lane === true;
-  const job = typeof ext?.job === "string" ? ext.job.trim() : "";
   const pricing = readCruisePricing(ext?.pricing);
 
   const input: ModelDefinitionConfig["input"] =
@@ -167,23 +212,27 @@ function projectLiveModel(
         ? ["text"]
         : (fallback?.input ?? ["text"]);
 
-  const reasoning =
-    fallback?.reasoning ??
-    (isLane && REASONING_LANE_JOBS.has(job) ? true : false);
+  // When live x-cruise is present, do not inherit seed placeholder costs (often 0).
+  // Missing/null live rates stay 0 as "unknown to OpenClaw's required number fields",
+  // not as "seed said free".
+  const useLiveCosts = Boolean(ext);
+  const cost = {
+    input: useLiveCosts ? (pricing.input ?? 0) : (pricing.input ?? fallback?.cost.input ?? 0),
+    output: useLiveCosts ? (pricing.output ?? 0) : (pricing.output ?? fallback?.cost.output ?? 0),
+    cacheRead: useLiveCosts
+      ? (pricing.cacheRead ?? 0)
+      : (pricing.cacheRead ?? fallback?.cost.cacheRead ?? 0),
+    cacheWrite: useLiveCosts ? 0 : (fallback?.cost.cacheWrite ?? 0),
+  };
 
   return {
     id,
     name: isLane
       ? laneDisplayName(ext ?? {}, id)
       : (fallback?.name ?? id),
-    reasoning,
+    reasoning: resolveReasoning(ext, fallback),
     input,
-    cost: {
-      input: pricing.input ?? fallback?.cost.input ?? 0,
-      output: pricing.output ?? fallback?.cost.output ?? 0,
-      cacheRead: pricing.cacheRead ?? fallback?.cost.cacheRead ?? 0,
-      cacheWrite: fallback?.cost.cacheWrite ?? 0,
-    },
+    cost,
     contextWindow:
       readPositiveInteger(ext?.max_context) ??
       fallback?.contextWindow ??
@@ -201,24 +250,30 @@ function projectLiveModel(
 /** Projects Cruise's authenticated `/models` response into OpenClaw model rows. */
 export function projectCruiseLiveModels(rows: readonly unknown[]): ModelDefinitionConfig[] {
   const fallbacks = new Map(buildStaticCruiseModels().map((model) => [model.id, model]));
-  const seen = new Set<string>();
-  const models: ModelDefinitionConfig[] = [];
+  // Last-wins on duplicate ids (override semantics if Cruise ever repeats a row).
+  const byId = new Map<string, ModelDefinitionConfig>();
   for (const row of rows) {
     if (!row || typeof row !== "object" || Array.isArray(row)) {
       continue;
     }
     const typed = row as CruiseLiveModelRow;
-    const model = projectLiveModel(typed, fallbacks.get(String(typed.id)));
-    if (!model || seen.has(model.id)) {
+    const rawId = typeof typed.id === "string" ? typed.id.trim() : "";
+    const model = projectLiveModel(typed, rawId ? fallbacks.get(rawId) : undefined);
+    if (!model) {
       continue;
     }
-    seen.add(model.id);
-    models.push(model);
+    byId.set(model.id, model);
   }
-  return models;
+  return [...byId.values()];
 }
 
-/** Resolves a forward-compatible Cruise model id not yet in the bundled catalog. */
+/**
+ * Resolves a forward-compatible Cruise model id not yet in the bundled catalog.
+ *
+ * Costs/windows here are **unverified placeholders** (zeros / defaults) until the
+ * next live catalog refresh — do not treat them as Cruise pricing. Prefer ids
+ * that already appeared in `GET /v1/models` for the presented key.
+ */
 export function resolveCruiseDynamicModel(
   modelId: string,
   baseUrl?: string,
@@ -227,7 +282,7 @@ export function resolveCruiseDynamicModel(
   if (!id || CRUISE_MODEL_CATALOG.some((model) => model.id === id)) {
     return undefined;
   }
-  const resolvedBaseUrl = baseUrl?.trim() || CRUISE_BASE_URL;
+  const resolvedBaseUrl = resolveAllowedCruiseBaseUrl(baseUrl);
   return {
     id,
     name: id,

@@ -5,7 +5,7 @@ import { buildProviderReplayFamilyHooks } from "openclaw/plugin-sdk/provider-mod
 import { buildProviderToolCompatFamilyHooks } from "openclaw/plugin-sdk/provider-tools";
 import type { OpenClawPluginDefinition } from "openclaw/plugin-sdk/plugin-entry";
 import manifest from "../openclaw.plugin.json" with { type: "json" };
-import { projectCruiseLiveModels, resolveCruiseDynamicModel } from "./models.js";
+import { projectCruiseLiveModels, resolveAllowedCruiseBaseUrl, resolveCruiseDynamicModel } from "./models.js";
 import { applyCruiseConfig } from "./onboard.js";
 import { buildStaticCruiseProvider } from "./provider-catalog.js";
 
@@ -40,6 +40,7 @@ const cruisePlugin: OpenClawPluginDefinition = defineSingleProviderPluginEntry({
         "Get a cru_demo_ or cru_live_ key at: https://bytesbrains.com/cruise",
         "Demo host: https://cruise-demo.bytesbrains.net/v1",
         "Production: https://cruise.bytesbrains.net/v1",
+        "Custom baseUrl must be https and under *.bytesbrains.net.",
       ].join("\n"),
     },
     catalog: {
@@ -64,9 +65,9 @@ const cruisePlugin: OpenClawPluginDefinition = defineSingleProviderPluginEntry({
       modelId: string;
       providerConfig?: { baseUrl?: unknown };
     }) => {
-      const baseUrl =
+      const raw =
         typeof providerConfig?.baseUrl === "string" ? providerConfig.baseUrl : undefined;
-      return resolveCruiseDynamicModel(modelId, baseUrl);
+      return resolveCruiseDynamicModel(modelId, resolveAllowedCruiseBaseUrl(raw));
     },
     ...buildProviderReplayFamilyHooks({
       family: "openai-compatible",

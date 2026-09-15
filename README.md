@@ -31,7 +31,8 @@ the base URL you configure.
 
 The plugin (`@bytesbrains/openclaw-cruise-provider`) refreshes the model list from Cruise so you do
 **not** hand-edit windows or costs from a screenshot. Costs and limits come from each row’s
-`x-cruise` metadata.
+`x-cruise` metadata. The two lane rows in `openclaw.plugin.json` are **offline seeds only**
+(setup / no-auth fallback); live discovery replaces them when a key is present.
 
 ```sh
 # From a published release (when tagged — see issue #3), or from this checkout:
