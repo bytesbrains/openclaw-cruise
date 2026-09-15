@@ -1,7 +1,7 @@
 # Tag-triggered publish only — a merge to main/dev is never a release.
 #
 # Cutting a release:
-#   1. Bump package.json version on main (and CHANGELOG); drop "private": true.
+#   1. Bump package.json version on main (and CHANGELOG).
 #   2. Tag that commit: git tag v0.1.0 && git push origin v0.1.0
 #   3. This workflow builds, packs, scans the tarball, then publishes to npm
 #      (and ClawHub when CLAWHUB_PUBLISH_TOKEN is set).

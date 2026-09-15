@@ -37,7 +37,7 @@ CI job `check` runs the secrets scan on every PR and on pushes to `main` / `dev`
 - Branch Cruise refusals on `error.code` (`budget_exhausted`, `wallet_exhausted`,
   `measurement_stale`, …), not on HTTP status alone.
 - A release is a **tag**, not a merge. Workflow `release` publishes on `v*` tags only
-  (`npm run pack:check` first). Keep `"private": true` until the first intentional publish.
+  (`npm run pack:check` first).
 
 ## Layout
 

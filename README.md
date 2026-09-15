@@ -35,11 +35,11 @@ The plugin (`@bytesbrains/openclaw-cruise-provider`) refreshes the model list fr
 (setup / no-auth fallback); live discovery replaces them when a key is present.
 
 ```sh
-# From this checkout (works today — package is still private until the first tag):
+# From this checkout:
 npm run build
 openclaw plugins install .
 
-# After the first tagged release (see Releases below):
+# After a tagged release (see Releases below):
 openclaw plugins install npm:@bytesbrains/openclaw-cruise-provider
 # or: openclaw plugins install clawhub:@bytesbrains/openclaw-cruise-provider
 
@@ -60,8 +60,8 @@ environment.
 
 ### Releases (maintainers)
 
-A release is a **tag**, not a merge. Bump `package.json` version (and drop `"private": true`),
-update `CHANGELOG.md`, merge to `main`, then:
+A release is a **tag**, not a merge. Bump `package.json` version, update `CHANGELOG.md`,
+merge to `main`, then:
 
 ```sh
 git tag v0.1.0
@@ -81,7 +81,7 @@ Two workflows fire on `v*`:
 2. Locally: `npm i -g clawhub && clawhub login`
 3. `npm run build && clawhub package validate . && clawhub package publish . --dry-run --owner bytesbrains --family code-plugin`
 4. Put `CLAWHUB_PUBLISH_TOKEN` in a local `.env` (gitignored) and as the GitHub Actions secret of the same name (plus `NPM_TOKEN` for npm).
-5. Drop `"private": true`, bump version, tag `v0.1.0` on `main`.
+5. Bump version, tag `v0.1.0` on `main`.
 
 Install after it clears ClawHub review:
 
