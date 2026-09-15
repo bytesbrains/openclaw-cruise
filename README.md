@@ -68,8 +68,29 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-GitHub Actions workflow `release` packs the tarball (`npm run pack:check`), publishes to npm
-when `NPM_TOKEN` is set, and optionally to ClawHub when `CLAWHUB_TOKEN` is set.
+Two workflows fire on `v*`:
+
+| Workflow | What it does | Secrets |
+| --- | --- | --- |
+| `release` | `pack:check` → **npm** publish (+ optional ClawHub via CLI) | `NPM_TOKEN` required; `CLAWHUB_TOKEN` optional |
+| `clawhub-publish` | Official ClawHub reusable publish ([docs](https://docs.openclaw.ai/clawhub/publishing)) | `CLAWHUB_TOKEN` |
+
+**First ClawHub publish (one-time):**
+
+1. Create / claim the `@bytesbrains` owner on [clawhub.ai](https://clawhub.ai) (must match the package scope).
+2. Locally: `npm i -g clawhub && clawhub login`
+3. `npm run build && clawhub package validate . && clawhub package publish . --dry-run --owner bytesbrains --family code-plugin`
+4. Add GitHub Actions secret `CLAWHUB_TOKEN` (and `NPM_TOKEN` for npm).
+5. Drop `"private": true`, bump version, tag `v0.1.0` on `main`.
+
+Install after it clears ClawHub review:
+
+```sh
+openclaw plugins install clawhub:@bytesbrains/openclaw-cruise-provider
+```
+
+After the first successful ClawHub publish you can enable secretless trusted publishing for
+`workflow_dispatch` (tag pushes still want `CLAWHUB_TOKEN` per ClawHub docs).
 
 ---
 

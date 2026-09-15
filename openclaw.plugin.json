@@ -2,6 +2,7 @@
   "id": "cruise",
   "name": "BytesBrains Cruise",
   "description": "OpenClaw provider plugin for BytesBrains Cruise — live model discovery from GET /v1/models. Manifest model rows are offline seeds only; live auth replaces costs and windows.",
+  "categories": ["developer-tools"],
   "activation": {
     "onStartup": false
   },
