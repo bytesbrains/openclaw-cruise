@@ -14,7 +14,9 @@
   },
   "scripts": {
     "prepare": "git config core.hooksPath .githooks || true",
-    "secrets:scan": "gitleaks detect --source . --redact --no-banner --config .gitleaks.toml"
+    "secrets:scan": "gitleaks detect --source . --redact --no-banner --config .gitleaks.toml",
+    "test": "npm run secrets:scan",
+    "build": "node scripts/check-recipe.mjs"
   },
   "engines": {
     "node": ">=22"

@@ -37,13 +37,13 @@ git config core.hooksPath .githooks
 ## Checks
 
 ```sh
-npm run secrets:scan   # when package scripts exist
-# or:
-gitleaks detect --source . --redact --no-banner --config .gitleaks.toml
+npm run build          # validates examples/openclaw.json5
+npm test               # gitleaks secrets scan (requires gitleaks on PATH)
+npm run secrets:scan   # same scan as test
 ```
 
 CI runs the secrets scan on every pull request and on pushes to `main` / `dev`. The required
-status check is named `check`.
+status check is named `check`. Agent-oriented project notes live in [`AGENT.md`](AGENT.md).
 
 ## Trying the recipe
 
