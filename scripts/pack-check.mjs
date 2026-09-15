@@ -2,16 +2,27 @@
 /**
  * Pack the npm artifact and fail if anything secret-shaped or out-of-`files`
  * slipped in. A merge must never publish; this is what the tag release runs.
+ *
+ * Uses execFileSync with argv arrays only (no shell) — inputs are fixed CLI
+ * names plus the tarball basename produced by `npm pack` for this package.
  */
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, readdirSync, statSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  readdirSync,
+  statSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 
 const ROOT = process.cwd();
+
+/** Must match package.json `files` (+ package.json always included by npm). */
 const ALLOWED_TOP = new Set([
   "package.json",
-  "package-lock.json", // sometimes included; harmless if absent
   "README.md",
   "LICENSE.txt",
   "LICENSE",
@@ -20,7 +31,9 @@ const ALLOWED_TOP = new Set([
 ]);
 
 const FORBIDDEN_NAME = /(?:^|\/)(?:\.env|\.env\..*|credentials\.json|.*\.(?:pem|key))$/i;
-const CRUISE_KEY = /\bcru_(?:live|demo|test|svc)_[A-Za-z0-9]+\b/;
+
+/** Align with .gitleaks.toml cruise-key (prefix + 40 base62 chars). */
+const CRUISE_KEY = /\bcru_(?:live|demo|test|svc)_[A-Za-z0-9]{40}\b/;
 
 function listFiles(dir, prefix = "") {
   const out = [];
@@ -34,54 +47,111 @@ function listFiles(dir, prefix = "") {
   return out;
 }
 
-const packName = execFileSync("npm", ["pack", "--dry-run", "--json"], {
-  cwd: ROOT,
-  encoding: "utf8",
-}).trim();
-
-let packMeta;
-try {
-  packMeta = JSON.parse(packName);
-} catch {
-  // npm pack --json may print a bare filename on some versions
-  packMeta = null;
+function assertSafeTarballName(name) {
+  const base = basename(name);
+  if (base !== name || name.includes("..") || name.includes("/") || name.includes("\\")) {
+    console.error(`pack:check: refusing unsafe tarball name: ${name}`);
+    process.exit(1);
+  }
+  if (!/^[\w.-]+\.tgz$/.test(base)) {
+    console.error(`pack:check: unexpected tarball basename: ${base}`);
+    process.exit(1);
+  }
+  return base;
 }
 
-const tarball = execFileSync("npm", ["pack"], { cwd: ROOT, encoding: "utf8" })
+function isMostlyText(buf) {
+  if (buf.length === 0) return true;
+  let suspicious = 0;
+  const sample = buf.subarray(0, Math.min(buf.length, 8192));
+  for (const b of sample) {
+    if (b === 0) return false;
+    if (b < 7 || (b > 13 && b < 32)) suspicious += 1;
+  }
+  return suspicious / sample.length < 0.1;
+}
+
+function runGitleaksOnExtract(pkgRoot) {
+  try {
+    execFileSync(
+      "gitleaks",
+      [
+        "detect",
+        "--source",
+        pkgRoot,
+        "--no-git",
+        "--redact",
+        "--no-banner",
+        "--config",
+        join(ROOT, ".gitleaks.toml"),
+      ],
+      { stdio: "inherit" },
+    );
+  } catch (err) {
+    if (err && typeof err === "object" && "status" in err && err.status === 1) {
+      console.error("pack:check: gitleaks found secrets in the packed artifact");
+      process.exit(1);
+    }
+    // gitleaks missing in some local shells — CI release image installs it via
+    // the secrets-scan job elsewhere; here we still keep the regex scan.
+    if (err && typeof err === "object" && "status" in err && err.status === 127) {
+      console.warn("pack:check: gitleaks not on PATH — regex scan only");
+      return;
+    }
+    // spawn ENOENT
+    if (err && typeof err === "object" && "code" in err && err.code === "ENOENT") {
+      console.warn("pack:check: gitleaks not on PATH — regex scan only");
+      return;
+    }
+    throw err;
+  }
+}
+
+execFileSync("npm", ["pack", "--dry-run", "--json"], {
+  cwd: ROOT,
+  encoding: "utf8",
+});
+
+const packOut = execFileSync("npm", ["pack"], { cwd: ROOT, encoding: "utf8" })
   .trim()
   .split("\n")
   .filter(Boolean)
   .at(-1);
-if (!tarball || !tarball.endsWith(".tgz")) {
-  console.error(`pack:check: unexpected pack output: ${tarball}`);
+if (!packOut) {
+  console.error("pack:check: npm pack produced no tarball name");
   process.exit(1);
 }
+const tarball = assertSafeTarballName(packOut);
 
 const extractDir = mkdtempSync(join(tmpdir(), "openclaw-cruise-pack-"));
 try {
-  execFileSync("tar", ["-xzf", join(ROOT, tarball), "-C", extractDir], { stdio: "inherit" });
+  execFileSync("tar", ["-xzf", join(ROOT, tarball), "-C", extractDir], {
+    stdio: "inherit",
+  });
   const pkgRoot = join(extractDir, "package");
+  if (!existsSync(pkgRoot)) {
+    console.error("pack:check: packed archive missing package/ root");
+    process.exit(1);
+  }
   const files = listFiles(pkgRoot);
 
   for (const rel of files) {
     const top = rel.split("/")[0] ?? rel;
-    if (!ALLOWED_TOP.has(top) && top !== "package.json") {
-      // dist/** is allowed via top "dist"
-      if (!rel.startsWith("dist/")) {
-        console.error(`pack:check: unexpected path in tarball: ${rel}`);
-        process.exit(1);
-      }
+    if (!ALLOWED_TOP.has(top)) {
+      console.error(`pack:check: unexpected path in tarball: ${rel}`);
+      process.exit(1);
     }
     if (FORBIDDEN_NAME.test(rel)) {
       console.error(`pack:check: forbidden filename in tarball: ${rel}`);
       process.exit(1);
     }
-    if (/\.(?:js|mjs|cjs|json|md|txt|map|ts)$/i.test(rel)) {
-      const text = readFileSync(join(pkgRoot, rel), "utf8");
-      if (CRUISE_KEY.test(text)) {
-        console.error(`pack:check: Cruise key shape found in ${rel}`);
-        process.exit(1);
-      }
+    const abs = join(pkgRoot, rel);
+    const buf = readFileSync(abs);
+    if (!isMostlyText(buf)) continue;
+    const text = buf.toString("utf8");
+    if (CRUISE_KEY.test(text)) {
+      console.error(`pack:check: Cruise key shape found in ${rel}`);
+      process.exit(1);
     }
   }
 
@@ -98,10 +168,9 @@ try {
     process.exit(1);
   }
 
+  runGitleaksOnExtract(pkgRoot);
+
   console.log(`pack:check: ok — ${tarball} (${files.length} files)`);
-  if (packMeta) {
-    console.log(`pack:check: npm pack metadata present`);
-  }
 } finally {
   rmSync(extractDir, { recursive: true, force: true });
   try {

@@ -35,13 +35,13 @@ The plugin (`@bytesbrains/openclaw-cruise-provider`) refreshes the model list fr
 (setup / no-auth fallback); live discovery replaces them when a key is present.
 
 ```sh
-# Published release (npm / ClawHub) — preferred once a tag exists:
-openclaw plugins install npm:@bytesbrains/openclaw-cruise-provider
-# or: openclaw plugins install clawhub:@bytesbrains/openclaw-cruise-provider
-
-# From this checkout (before / without a registry publish):
+# From this checkout (works today — package is still private until the first tag):
 npm run build
 openclaw plugins install .
+
+# After the first tagged release (see Releases below):
+openclaw plugins install npm:@bytesbrains/openclaw-cruise-provider
+# or: openclaw plugins install clawhub:@bytesbrains/openclaw-cruise-provider
 
 export CRUISE_API_KEY=cru_demo_…   # or cru_live_…
 openclaw gateway restart
@@ -54,7 +54,9 @@ Onboarding can also take `--cruise-api-key`. Default production base URL is
 `*.bytesbrains.net`).
 
 **Secrets never enter the published artifact** — only `dist/`, `openclaw.plugin.json`,
-README, and the license. Keys stay in the environment.
+README, and the license. `npm run pack:check` (and gitleaks with `.gitleaks.toml` on the
+extracted tarball) fail the release if a Cruise key shape appears. Keys stay in the
+environment.
 
 ### Releases (maintainers)
 
