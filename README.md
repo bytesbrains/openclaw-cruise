@@ -80,7 +80,7 @@ Two workflows fire on `v*`:
 
 | Workflow | What it does | Auth |
 | --- | --- | --- |
-| `release` | `pack:check` → **npm** publish (+ optional ClawHub via CLI) | npm OIDC Trusted Publisher (optional `NPM_TOKEN` break-glass); `CLAWHUB_PUBLISH_TOKEN` optional |
+| `release` | Tag must be on `main` → `pack:check` → **npm** publish (npm only) | npm OIDC Trusted Publisher (optional `NPM_TOKEN` break-glass) |
 | `clawhub-publish` | Official ClawHub reusable publish ([docs](https://docs.openclaw.ai/clawhub/publishing)) | `CLAWHUB_PUBLISH_TOKEN` |
 
 `@bytesbrains/openclaw-cruise-provider@0.0.1` is already on npm and ClawHub. Later versions:

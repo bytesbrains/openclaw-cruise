@@ -294,12 +294,6 @@ export function resolveCruiseDynamicModel(
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     contextWindow: DEFAULT_CONTEXT_WINDOW,
     maxTokens: DEFAULT_MAX_TOKENS,
-    compat: {
-      supportsStore: false,
-      supportsDeveloperRole: false,
-      supportsUsageInStreaming: true,
-      supportsTools: true,
-      maxTokensField: "max_tokens" as const,
-    },
+    compat: { ...CRUISE_MODEL_COMPAT },
   } as ProviderRuntimeModel;
 }
