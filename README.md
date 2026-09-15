@@ -72,15 +72,21 @@ Two workflows fire on `v*`:
 
 | Workflow | What it does | Secrets |
 | --- | --- | --- |
-| `release` | `pack:check` → **npm** publish (+ optional ClawHub via CLI) | `NPM_TOKEN` required; `CLAWHUB_PUBLISH_TOKEN` optional |
+| `release` | `pack:check` → **npm** publish (+ optional ClawHub via CLI) | npm OIDC Trusted Publisher (no token); optional `NPM_TOKEN` break-glass; `CLAWHUB_PUBLISH_TOKEN` optional |
 | `clawhub-publish` | Official ClawHub reusable publish ([docs](https://docs.openclaw.ai/clawhub/publishing)) | `CLAWHUB_PUBLISH_TOKEN` |
+
+**npm Trusted Publisher (one-time, after the first CLI publish):**
+
+1. Open [npm package settings](https://www.npmjs.com/package/@bytesbrains/openclaw-cruise-provider) → **Trusted Publisher**.
+2. GitHub: org `bytesbrains`, repo `openclaw-cruise`, workflow filename `release.yml`.
+3. Allow `npm publish`. Later `v*` tags publish with OIDC (`id-token: write`) — no `NPM_TOKEN` required.
 
 **First ClawHub publish (one-time):**
 
 1. Create / claim the `@bytesbrains` owner on [clawhub.ai](https://clawhub.ai) (must match the package scope).
 2. Locally: `npm i -g clawhub && clawhub login`
 3. `npm run build && clawhub package validate . && clawhub package publish . --dry-run --owner bytesbrains --family code-plugin`
-4. Put `CLAWHUB_PUBLISH_TOKEN` in a local `.env` (gitignored) and as the GitHub Actions secret of the same name (plus `NPM_TOKEN` for npm).
+4. Put `CLAWHUB_PUBLISH_TOKEN` in a local `.env` (gitignored) and as the GitHub Actions secret of the same name.
 5. Bump version, tag `v0.1.0` on `main`.
 
 Install after it clears ClawHub review:
