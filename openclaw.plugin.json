@@ -1,0 +1,90 @@
+{
+  "id": "cruise",
+  "name": "BytesBrains Cruise",
+  "description": "OpenClaw provider plugin for BytesBrains Cruise — live model discovery from GET /v1/models. Manifest model rows are offline seeds only; live auth replaces costs and windows.",
+  "activation": {
+    "onStartup": false
+  },
+  "enabledByDefault": true,
+  "providers": ["cruise"],
+  "providerRequest": {
+    "providers": {
+      "cruise": {
+        "family": "openai-compatible",
+        "openAICompletions": {
+          "supportsStreamingUsage": true
+        }
+      }
+    }
+  },
+  "modelCatalog": {
+    "providers": {
+      "cruise": {
+        "baseUrl": "https://cruise.bytesbrains.net/v1",
+        "api": "openai-completions",
+        "defaultModel": "bb/agentic-coding",
+        "models": [
+          {
+            "id": "bb/agentic-coding",
+            "name": "Cruise agentic coding (lane)",
+            "reasoning": true,
+            "input": ["text"],
+            "contextWindow": 128000,
+            "maxTokens": 8192,
+            "cost": {
+              "input": 0,
+              "output": 0,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          },
+          {
+            "id": "bb/chat-assistant",
+            "name": "Cruise chat assistant (lane)",
+            "reasoning": false,
+            "input": ["text"],
+            "contextWindow": 128000,
+            "maxTokens": 8192,
+            "cost": {
+              "input": 0,
+              "output": 0,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            }
+          }
+        ]
+      }
+    }
+  },
+  "setup": {
+    "providers": [
+      {
+        "id": "cruise",
+        "envVars": ["CRUISE_API_KEY"]
+      }
+    ]
+  },
+  "providerAuthChoices": [
+    {
+      "provider": "cruise",
+      "method": "api-key",
+      "choiceId": "cruise-api-key",
+      "appGuidedSecret": true,
+      "choiceLabel": "Cruise API key",
+      "choiceHint": "cru_demo_ or cru_live_ key from bytesbrains.com/cruise",
+      "groupId": "cruise",
+      "groupLabel": "BytesBrains Cruise",
+      "groupHint": "One OpenAI-compatible endpoint with budgets and a cost ledger",
+      "optionKey": "cruiseApiKey",
+      "cliFlag": "--cruise-api-key",
+      "cliOption": "--cruise-api-key <key>",
+      "cliDescription": "BytesBrains Cruise API key"
+    }
+  ],
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {},
+    "$comment": "Plugin-owned settings only (plugins.entries.cruise.config). Provider baseUrl lives under models.providers.cruise and is not validated by this schema."
+  }
+}

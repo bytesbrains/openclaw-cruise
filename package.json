@@ -1,9 +1,10 @@
 {
-  "name": "openclaw-cruise",
+  "name": "@bytesbrains/openclaw-cruise-provider",
   "version": "0.0.1",
   "private": true,
-  "description": "BytesBrains Cruise for OpenClaw: recipe and (soon) provider plugin.",
+  "description": "BytesBrains Cruise provider plugin for OpenClaw — live GET /v1/models discovery.",
   "license": "SEE LICENSE IN LICENSE.txt",
+  "type": "module",
   "homepage": "https://bytesbrains.com/cruise",
   "repository": {
     "type": "git",
@@ -12,13 +13,46 @@
   "bugs": {
     "url": "https://github.com/bytesbrains/openclaw-cruise/issues"
   },
+  "files": [
+    "dist",
+    "openclaw.plugin.json",
+    "README.md",
+    "LICENSE.txt"
+  ],
   "scripts": {
     "prepare": "git config core.hooksPath .githooks || true",
-    "secrets:scan": "gitleaks detect --source . --redact --no-banner --config .gitleaks.toml",
-    "test": "npm run secrets:scan",
-    "build": "node scripts/check-recipe.mjs"
+    "build": "tsc -p tsconfig.json",
+    "prepack": "npm run build",
+    "test": "vitest run",
+    "check:recipe": "node scripts/check-recipe.mjs",
+    "secrets:scan": "gitleaks detect --source . --redact --no-banner --config .gitleaks.toml"
+  },
+  "peerDependencies": {
+    "openclaw": ">=2026.7.2-beta.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "openclaw": "2026.9.4",
+    "typescript": "^5.8.3",
+    "vitest": "^4.1.11"
   },
   "engines": {
     "node": ">=22"
+  },
+  "openclaw": {
+    "extensions": [
+      "./dist/index.js"
+    ],
+    "install": {
+      "npmSpec": "@bytesbrains/openclaw-cruise-provider",
+      "defaultChoice": "npm",
+      "minHostVersion": ">=2026.7.2-beta.7"
+    },
+    "compat": {
+      "pluginApi": ">=2026.7.2-beta.7"
+    },
+    "build": {
+      "openclawVersion": "2026.9.4"
+    }
   }
 }

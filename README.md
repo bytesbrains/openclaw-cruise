@@ -19,12 +19,36 @@
 ## What this is
 
 [BytesBrains Cruise](https://bytesbrains.com/cruise) is one OpenAI-compatible endpoint in front of
-every model provider. This repository is the **OpenClaw client**: a verified recipe today, and
-(tracked in issues) a provider plugin that discovers models from Cruise rather than freezing a list
-into config.
+every model provider. This repository is the **OpenClaw client**: an installable provider plugin
+that discovers models from `GET /v1/models` for your key, plus a verified recipe for manual config.
 
 Your keys, budgets and ledger stay on the gateway. OpenClaw only holds a `cru_` key and talks to
 the base URL you configure.
+
+---
+
+## Install the provider plugin (preferred)
+
+The plugin (`@bytesbrains/openclaw-cruise-provider`) refreshes the model list from Cruise so you do
+**not** hand-edit windows or costs from a screenshot. Costs and limits come from each row’s
+`x-cruise` metadata. The two lane rows in `openclaw.plugin.json` are **offline seeds only**
+(setup / no-auth fallback); live discovery replaces them when a key is present.
+
+```sh
+# From a published release (when tagged — see issue #3), or from this checkout:
+openclaw plugins install .
+# or: openclaw plugins install clawhub:@bytesbrains/openclaw-cruise-provider
+
+export CRUISE_API_KEY=cru_demo_…   # or cru_live_…
+openclaw gateway restart
+openclaw models list --provider cruise
+```
+
+Onboarding can also take `--cruise-api-key`. Default production base URL is
+`https://cruise.bytesbrains.net/v1`; point `models.providers.cruise.baseUrl` at
+`https://cruise-demo.bytesbrains.net/v1` for the demo (explicit base URL overrides are allowed).
+
+Until npm/ClawHub publish ships, install from this git checkout after `npm run build`.
 
 ---
 
@@ -39,8 +63,8 @@ the base URL you configure.
 export CRUISE_API_KEY=cru_demo_…
 ```
 
-3. Add a Cruise provider under `models.providers` (OpenClaw's OpenAI-completions path). Point at
-   the **demo** host first:
+3. Prefer the plugin path above. Or add a Cruise provider under `models.providers` (OpenClaw's
+   OpenAI-completions path) by hand — point at the **demo** host first:
 
 ```json5
 {
@@ -92,9 +116,9 @@ provider does. A hardcoded `gpt-4o` reaches Cruise as a model it does not route.
 A `bb/…` id is a **lane**: Cruise picks a member per request. Prefer a lane for agent work
 (`bb/agentic-coding`); pin a specific model id only when you need that vendor.
 
-OpenClaw currently wants each model declared in the provider's `models` array. Fetching that list
-from Cruise (so it cannot go stale) is tracked as an issue in this repo — until then, keep the
-array short and refresh it from `GET /v1/models` when lanes or measurements change.
+OpenClaw currently wants each model declared in the provider's `models` array **unless** you use
+the Cruise provider plugin above, which refreshes that list from `GET /v1/models`. Keep any
+hand-written array short and refresh it from Cruise when lanes or measurements change.
 
 ---
 
