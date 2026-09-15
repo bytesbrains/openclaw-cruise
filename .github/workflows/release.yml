@@ -95,9 +95,18 @@ jobs:
         run: |
           # Releases go feature → dev → main; a tag cut from dev or a feature branch
           # would publish code main never reviewed.
-          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+          # Fetch main explicitly rather than relying on checkout's refspec.
+          git fetch --no-tags --quiet origin +refs/heads/main:refs/remotes/origin/main
+          # --is-ancestor exits 0 (on main), 1 (not on main), or >1 on a git error;
+          # keep the error distinct so it is not reported as "not on main".
+          rc=0
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main || rc=$?
+          if [ "$rc" -eq 1 ]; then
             echo "Tag $GITHUB_REF_NAME ($GITHUB_SHA) is not on main — merge the dev → main release PR, then tag main"
             exit 1
+          elif [ "$rc" -ne 0 ]; then
+            echo "Could not check $GITHUB_SHA against origin/main (git exit $rc)"
+            exit "$rc"
           fi
 
       - name: Pack and assert no secrets in the artifact
