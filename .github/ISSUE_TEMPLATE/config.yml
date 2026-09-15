@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: BytesBrains Cruise product
+    url: https://bytesbrains.com/cruise
+    about: Product site and demo key signup — not for this repo's bug tracker.
+  - name: OpenClaw model providers docs
+    url: https://docs.openclaw.ai/concepts/model-providers
+    about: Upstream OpenClaw provider configuration reference.
