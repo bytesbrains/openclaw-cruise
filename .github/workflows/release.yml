@@ -1,18 +1,20 @@
 # Tag-triggered publish only — a merge to main/dev is never a release.
 #
 # Cutting a release:
-#   1. Bump package.json version on main (and CHANGELOG).
-#   2. Tag that commit: git tag v0.1.0 && git push origin v0.1.0
-#   3. This workflow builds, packs, scans the tarball, then publishes to npm
-#      via OIDC trusted publishing (and ClawHub when CLAWHUB_PUBLISH_TOKEN is set).
+#   1. Bump package.json version (and CHANGELOG) in a PR into dev.
+#   2. Merge a dev → main release PR.
+#   3. Tag the main commit: git tag v0.1.0 && git push origin v0.1.0
+#   4. This workflow builds, packs, scans the tarball, then publishes to npm
+#      via OIDC trusted publishing. The tag must point at a commit on main.
+#
+# ClawHub is published by clawhub-publish.yml on the same tag — not here, so the
+# two workflows never push the same version twice.
 #
 # workflow_dispatch defaults to dry_run=true (pack/validate only). Set dry_run
 # to false on a v* tag ref to publish without pushing a new tag.
 #
 # npm: configure Trusted Publisher on npmjs for this repo + workflow filename
 #   release.yml (no NPM_TOKEN). Optional break-glass: secrets.NPM_TOKEN.
-# Optional:
-#   CLAWHUB_PUBLISH_TOKEN — ClawHub CLI token for `clawhub package publish`
 name: release
 
 on:
@@ -41,6 +43,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Full history so the tag can be checked against origin/main.
+          fetch-depth: 0
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -79,8 +84,19 @@ jobs:
             echo "Tag v$TAG does not match package.json version $PKG"
             exit 1
           fi
-          if node -p 'require("./package.json").private === true'; then
+          # Test the value, not node's exit code: `node -p` exits 0 on true and false.
+          if node -e 'process.exit(require("./package.json").private === true ? 0 : 1)'; then
             echo "package.json still has private:true — flip it before tagging a release"
+            exit 1
+          fi
+
+      - name: Assert tag points at a commit on main
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          # Releases go feature → dev → main; a tag cut from dev or a feature branch
+          # would publish code main never reviewed.
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "Tag $GITHUB_REF_NAME ($GITHUB_SHA) is not on main — merge the dev → main release PR, then tag main"
             exit 1
           fi
 
@@ -133,30 +149,3 @@ jobs:
           # Trusted publishing attaches provenance automatically; --provenance
           # remains fine for the token fallback path.
           npm publish --access public --provenance
-
-      - name: Publish to ClawHub from the scanned npm pack (optional)
-        if: steps.gate.outputs.publish == 'true'
-        env:
-          # CLI auth env; value comes from repo secret CLAWHUB_PUBLISH_TOKEN
-          CLAWHUB_TOKEN: ${{ secrets.CLAWHUB_PUBLISH_TOKEN }}
-        run: |
-          if [ -z "${CLAWHUB_TOKEN:-}" ]; then
-            echo "CLAWHUB_PUBLISH_TOKEN not set — skipping ClawHub publish (npm-only release)"
-            exit 0
-          fi
-          npm install -g clawhub
-          TARBALL="$(npm pack --silent | tail -n1)"
-          case "$TARBALL" in
-            *.tgz) ;;
-            *) echo "unexpected pack output: $TARBALL"; exit 1 ;;
-          esac
-          # Basename only — refuse path components (defense in depth; npm pack is local).
-          case "$TARBALL" in
-            */*|*..*) echo "refusing unsafe tarball path: $TARBALL"; exit 1 ;;
-          esac
-          EXTRACT="$(mktemp -d)"
-          tar -xzf "$TARBALL" -C "$EXTRACT"
-          gitleaks detect --source "$EXTRACT/package" --no-git --redact --no-banner --config .gitleaks.toml
-          clawhub package validate "$EXTRACT/package"
-          clawhub package publish "$EXTRACT/package" --family code-plugin --owner bytesbrains
-          rm -rf "$EXTRACT" "$TARBALL"
