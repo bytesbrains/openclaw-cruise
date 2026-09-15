@@ -2,20 +2,21 @@
 
 ## What this is
 
-Public **OpenClaw client** for [BytesBrains Cruise](https://bytesbrains.com/cruise): a verified
-recipe today (`examples/openclaw.json5`, README), and (tracked in issues) a provider plugin that
-discovers models from `GET /v1/models` instead of freezing a catalogue.
+Public **OpenClaw client** for [BytesBrains Cruise](https://bytesbrains.com/cruise): provider plugin
+`@bytesbrains/openclaw-cruise-provider` with live `GET /v1/models` discovery, plus a recipe in
+`examples/openclaw.json5`.
 
-Cruise holds provider keys, project budgets, and the cost ledger. This repo only documents how
-OpenClaw presents a `cru_` key to a Cruise base URL.
+Cruise holds provider keys, project budgets, and the cost ledger. This repo only ships the OpenClaw
+side: present a `cru_` key to a Cruise base URL and project Cruise’s catalogue into OpenClaw models.
 
 ## Commands
 
 ```sh
-npm ci                 # installs nothing much yet; runs prepare → core.hooksPath=.githooks
-npm test               # gitleaks secrets scan (requires gitleaks on PATH)
-npm run build          # validates examples/openclaw.json5 is present and Cruise-shaped
-npm run secrets:scan   # same scan as test
+npm ci                 # installs deps; prepare → core.hooksPath=.githooks
+npm run build          # tsc → dist/
+npm test               # vitest (projection / static catalog)
+npm run check:recipe   # validates examples/openclaw.json5
+npm run secrets:scan   # gitleaks (requires gitleaks on PATH)
 ```
 
 CI job `check` runs the secrets scan on every PR and on pushes to `main` / `dev`.
@@ -31,22 +32,22 @@ CI job `check` runs the secrets scan on every PR and on pushes to `main` / `dev`
   codes) is fine.
 - Model ids are **Cruise ids** from `GET /v1/models` for the presented key — never invent
   upstream provider ids. Prefer lanes (`bb/…`) over pinned models unless a pin is required.
+- Live projection reads `x-cruise` (modality, limits, pricing micros → $/MTok). Do not ship a
+  frozen full catalogue in the npm artifact.
 - Branch Cruise refusals on `error.code` (`budget_exhausted`, `wallet_exhausted`,
   `measurement_stale`, …), not on HTTP status alone.
-- A release is a **tag**, not a merge. There is no publish workflow until a plugin artifact
-  exists; then it must be tag-triggered only.
+- A release is a **tag**, not a merge. Publish (ClawHub / npm) is tag-triggered only (#3).
 
 ## Layout
 
 | Path | Role |
 | --- | --- |
-| `README.md` | User-facing recipe and refusal table |
-| `examples/openclaw.json5` | Starter OpenClaw config (demo host) |
-| `.githooks/` | pre-commit / pre-push gitleaks |
-| `.gitleaks.toml` | Includes Cruise key shapes |
-| `.github/workflows/ci.yml` | Required `check` job |
+| `src/` | Provider plugin (`defineSingleProviderPluginEntry`) |
+| `openclaw.plugin.json` | Manifest, static seed lanes, auth choice |
+| `examples/openclaw.json5` | Manual recipe (demo host) |
+| `test/` | Projection unit tests |
+| `.github/workflows/ci.yml` | Required `check` job (gitleaks) |
 
 ## Open work
 
-See GitHub issues: verify the demo recipe (#1), live model discovery (#2), plugin publish (#3),
-refusal docs (#4), upstream discoverability (#5), and repo posture (#7).
+See GitHub issues: verify the demo recipe (#1), plugin publish (#3), upstream discoverability (#5).

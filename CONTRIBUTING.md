@@ -37,9 +37,10 @@ git config core.hooksPath .githooks
 ## Checks
 
 ```sh
-npm run build          # validates examples/openclaw.json5
-npm test               # gitleaks secrets scan (requires gitleaks on PATH)
-npm run secrets:scan   # same scan as test
+npm run build          # TypeScript → dist/
+npm test               # vitest projection tests
+npm run check:recipe   # validates examples/openclaw.json5
+npm run secrets:scan   # gitleaks secrets scan (requires gitleaks on PATH)
 ```
 
 CI runs the secrets scan on every pull request and on pushes to `main` / `dev`. The required
