@@ -4,7 +4,9 @@
 
 Public **OpenClaw client** for [BytesBrains Cruise](https://bytesbrains.com/cruise): provider plugin
 `@bytesbrains/openclaw-cruise-provider` with live `GET /v1/models` discovery, plus a recipe in
-`examples/openclaw.json5`.
+`examples/openclaw.json5`. Install from
+[npm](https://www.npmjs.com/package/@bytesbrains/openclaw-cruise-provider) or
+[ClawHub](https://clawhub.ai/bytesbrains/plugins/openclaw-cruise-provider).
 
 Cruise holds provider keys, project budgets, and the cost ledger. This repo only ships the OpenClaw
 side: present a `cru_` key to a Cruise base URL and project Cruise’s catalogue into OpenClaw models.

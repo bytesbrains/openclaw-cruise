@@ -11,7 +11,9 @@
 
 <p align="center">
   <a href="https://bytesbrains.com/cruise"><img src="https://img.shields.io/badge/Product-bytesbrains.com%2Fcruise-111111" alt="Product" /></a>
-  <a href="https://docs.openclaw.ai/concepts/model-providers"><img src="https://img.shields.io/badge/OpenClaw-model%20providers-0A7" alt="OpenClaw docs" /></a>
+  <a href="https://www.npmjs.com/package/@bytesbrains/openclaw-cruise-provider"><img src="https://img.shields.io/npm/v/@bytesbrains/openclaw-cruise-provider?label=npm" alt="npm" /></a>
+  <a href="https://clawhub.ai/bytesbrains/plugins/openclaw-cruise-provider"><img src="https://img.shields.io/badge/ClawHub-plugin-0A7" alt="ClawHub" /></a>
+  <a href="https://docs.openclaw.ai/concepts/model-providers"><img src="https://img.shields.io/badge/OpenClaw-model%20providers-555" alt="OpenClaw docs" /></a>
 </p>
 
 ---
@@ -25,23 +27,29 @@ that discovers models from `GET /v1/models` for your key, plus a verified recipe
 Your keys, budgets and ledger stay on the gateway. OpenClaw only holds a `cru_` key and talks to
 the base URL you configure.
 
+**Published as** [`@bytesbrains/openclaw-cruise-provider`](https://www.npmjs.com/package/@bytesbrains/openclaw-cruise-provider)
+on [npm](https://www.npmjs.com/package/@bytesbrains/openclaw-cruise-provider) and
+[ClawHub](https://clawhub.ai/bytesbrains/plugins/openclaw-cruise-provider).
+
 ---
 
 ## Install the provider plugin (preferred)
 
-The plugin (`@bytesbrains/openclaw-cruise-provider`) refreshes the model list from Cruise so you do
-**not** hand-edit windows or costs from a screenshot. Costs and limits come from each row’s
-`x-cruise` metadata. The two lane rows in `openclaw.plugin.json` are **offline seeds only**
-(setup / no-auth fallback); live discovery replaces them when a key is present.
+The plugin refreshes the model list from Cruise so you do **not** hand-edit windows or costs from a
+screenshot. Costs and limits come from each row’s `x-cruise` metadata. The two lane rows in
+`openclaw.plugin.json` are **offline seeds only** (setup / no-auth fallback); live discovery
+replaces them when a key is present.
 
 ```sh
-# From this checkout:
+# ClawHub (preferred for OpenClaw plugins)
+openclaw plugins install clawhub:@bytesbrains/openclaw-cruise-provider
+
+# or npm
+openclaw plugins install npm:@bytesbrains/openclaw-cruise-provider
+
+# or from this checkout (development)
 npm run build
 openclaw plugins install .
-
-# After a tagged release (see Releases below):
-openclaw plugins install npm:@bytesbrains/openclaw-cruise-provider
-# or: openclaw plugins install clawhub:@bytesbrains/openclaw-cruise-provider
 
 export CRUISE_API_KEY=cru_demo_…   # or cru_live_…
 openclaw gateway restart
@@ -61,7 +69,7 @@ environment.
 ### Releases (maintainers)
 
 A release is a **tag**, not a merge. Bump `package.json` version, update `CHANGELOG.md`,
-merge to `main`, then:
+merge to the release branch, then:
 
 ```sh
 git tag v0.1.0
@@ -70,33 +78,15 @@ git push origin v0.1.0
 
 Two workflows fire on `v*`:
 
-| Workflow | What it does | Secrets |
+| Workflow | What it does | Auth |
 | --- | --- | --- |
-| `release` | `pack:check` → **npm** publish (+ optional ClawHub via CLI) | npm OIDC Trusted Publisher (no token); optional `NPM_TOKEN` break-glass; `CLAWHUB_PUBLISH_TOKEN` optional |
+| `release` | `pack:check` → **npm** publish (+ optional ClawHub via CLI) | npm OIDC Trusted Publisher (optional `NPM_TOKEN` break-glass); `CLAWHUB_PUBLISH_TOKEN` optional |
 | `clawhub-publish` | Official ClawHub reusable publish ([docs](https://docs.openclaw.ai/clawhub/publishing)) | `CLAWHUB_PUBLISH_TOKEN` |
 
-**npm Trusted Publisher (one-time, after the first CLI publish):**
-
-1. Open [npm package settings](https://www.npmjs.com/package/@bytesbrains/openclaw-cruise-provider) → **Trusted Publisher**.
-2. GitHub: org `bytesbrains`, repo `openclaw-cruise`, workflow filename `release.yml`.
-3. Allow `npm publish`. Later `v*` tags publish with OIDC (`id-token: write`) — no `NPM_TOKEN` required.
-
-**First ClawHub publish (one-time):**
-
-1. Create / claim the `@bytesbrains` owner on [clawhub.ai](https://clawhub.ai) (must match the package scope).
-2. Locally: `npm i -g clawhub && clawhub login`
-3. `npm run build && clawhub package validate . && clawhub package publish . --dry-run --owner bytesbrains --family code-plugin`
-4. Put `CLAWHUB_PUBLISH_TOKEN` in a local `.env` (gitignored) and as the GitHub Actions secret of the same name.
-5. Bump version, tag `v0.1.0` on `main`.
-
-Install after it clears ClawHub review:
-
-```sh
-openclaw plugins install clawhub:@bytesbrains/openclaw-cruise-provider
-```
-
-After the first successful ClawHub publish you can enable secretless trusted publishing for
-`workflow_dispatch` (tag pushes still want `CLAWHUB_PUBLISH_TOKEN` per ClawHub docs).
+`@bytesbrains/openclaw-cruise-provider@0.0.1` is already on npm and ClawHub. Later versions:
+bump, tag `vX.Y.Z`, and let the workflows publish. npm Trusted Publisher is configured for
+`bytesbrains/openclaw-cruise` + `release.yml`. Keep `CLAWHUB_PUBLISH_TOKEN` for tag publishes
+(and ClawHub trusted publishing for `workflow_dispatch` if you enable it).
 
 ---
 
@@ -164,9 +154,11 @@ provider does. A hardcoded `gpt-4o` reaches Cruise as a model it does not route.
 A `bb/…` id is a **lane**: Cruise picks a member per request. Prefer a lane for agent work
 (`bb/agentic-coding`); pin a specific model id only when you need that vendor.
 
-OpenClaw currently wants each model declared in the provider's `models` array **unless** you use
-the Cruise provider plugin above, which refreshes that list from `GET /v1/models`. Keep any
-hand-written array short and refresh it from Cruise when lanes or measurements change.
+OpenClaw selects models as `provider/model` — for this plugin that is `cruise/<cruise-id>`,
+e.g. `cruise/bb/agentic-coding`. OpenClaw currently wants each model declared in the provider's
+`models` array **unless** you use the Cruise provider plugin above, which refreshes that list
+from `GET /v1/models`. Keep any hand-written array short and refresh it from Cruise when lanes
+or measurements change.
 
 ---
 
@@ -204,15 +196,19 @@ not spending refusals — fix the key or env wiring first.
 - **Rehearse on the demo first.** `cruise-demo.bytesbrains.net` with a `cru_demo_` key costs
   nothing and holds no provider credential in the deployment.
 
+See [SECURITY.md](SECURITY.md) for reporting.
+
 ---
 
-## Product
+## Product & package
 
 | | |
 | --- | --- |
 | Product | [bytesbrains.com/cruise](https://bytesbrains.com/cruise) |
 | Production API | `https://cruise.bytesbrains.net/v1` |
 | Demo API | `https://cruise-demo.bytesbrains.net/v1` |
+| npm | [@bytesbrains/openclaw-cruise-provider](https://www.npmjs.com/package/@bytesbrains/openclaw-cruise-provider) |
+| ClawHub | [bytesbrains/plugins/openclaw-cruise-provider](https://clawhub.ai/bytesbrains/plugins/openclaw-cruise-provider) |
 | OpenClaw docs | [Model providers](https://docs.openclaw.ai/concepts/model-providers) |
 
 ---
@@ -220,3 +216,7 @@ not spending refusals — fix the key or env wiring first.
 ## Licence
 
 See [`LICENSE.txt`](LICENSE.txt).
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). PRs land on `dev` by default.

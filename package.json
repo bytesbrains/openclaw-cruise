@@ -12,6 +12,15 @@
   "bugs": {
     "url": "https://github.com/bytesbrains/openclaw-cruise/issues"
   },
+  "keywords": [
+    "openclaw",
+    "cruise",
+    "bytesbrains",
+    "llm",
+    "openai-compatible",
+    "clawhub",
+    "byok"
+  ],
   "files": [
     "dist",
     "openclaw.plugin.json",
