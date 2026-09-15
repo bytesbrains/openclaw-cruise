@@ -101,13 +101,24 @@ array short and refresh it from `GET /v1/models` when lanes or measurements chan
 ## When Cruise refuses
 
 Cruise answers spending refusals with HTTP `429` and OpenAI's `insufficient_quota` on purpose, so
-stock OpenAI clients fail correctly. Branch on `error.code`:
+stock OpenAI clients fail correctly. **Branch on `error.code`, never on HTTP status alone** — several
+codes share `429` and mean different operator actions.
 
-| Code | Meaning |
-| --- | --- |
-| `budget_exhausted` | The period cap is spent — wait for the next period (or raise the budget) |
-| `wallet_exhausted` | The prepaid wallet is empty — add credit |
-| `measurement_stale` | That model is not routable right now — pick another id from `/v1/models` |
+| Code | HTTP (typical) | Meaning | What to do |
+| --- | --- | --- | --- |
+| `budget_exhausted` | 429 | The **project** period cap is spent. Often carries `Retry-After`. | Wait for the period to reset, or ask the project owner to raise the cap. Retrying immediately will keep failing until then. |
+| `wallet_exhausted` | 429 | The account **prepaid wallet** is empty. **No** useful `Retry-After` — waiting does not help. | Top up or get a credit grant. Do **not** retry in a loop. |
+| `measurement_stale` | 429 | That model’s measurement aged out, so Cruise will not route it. | Call a lane (`bb/…`) or another id from `GET /v1/models` for your key. |
+| `model_not_found` | 404 | No such model or lane, or nothing in the lane this key may reach. | Refresh ids from `GET /v1/models`. Do not invent upstream provider ids (`gpt-4o`, …). |
+| `permission_error` | 403 | The key is valid but not scoped for that model. | Pick a model the key reaches, or ask for a wider key. |
+
+**Period cap vs wallet empty:** both look like “out of quota” to a generic OpenAI client. OpenClaw
+(or any agent) should read `error.code`: `budget_exhausted` is a **time-bound project limit**;
+`wallet_exhausted` is **no prepaid balance left**. Confusing them leads to pointless retries or the
+wrong human escalation.
+
+Auth failures (`Missing bearer token`, `Incorrect API key`) use `type: authentication_error` and are
+not spending refusals — fix the key or env wiring first.
 
 ---
 
