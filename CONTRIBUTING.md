@@ -9,8 +9,8 @@ truth for pointing OpenClaw at BytesBrains Cruise.
   provider credential. Keys live in the environment or a secret manager on the machine that uses
   them.
 - **No telemetry, no second host.** The client talks only to the configured Cruise base URL.
-- Prefer a pull request into `dev` (or `main` for a hotfix). Both branches are protected once CI
-  is green.
+- Open every pull request (features, fixes, docs, hotfixes) **into `dev`**. Only the release
+  PR from `dev` targets `main`. See [Branches and releases](#branches-and-releases).
 - Keep this repository **public-safe**. Do not paste internal gateway design, private issue
   trackers, credentials, or unpublished roadmap from elsewhere. Public product behaviour
   (base URL, key shapes, `/v1/models`, refusal codes) is fine.
@@ -40,8 +40,8 @@ npm run check:recipe   # validates examples/openclaw.json5
 npm run secrets:scan   # gitleaks secrets scan (requires gitleaks on PATH)
 ```
 
-CI runs the secrets scan on every pull request and on pushes to `main` / `dev`. The required
-status check is named `check`. Agent-oriented project notes live in [`AGENT.md`](AGENT.md).
+CI runs the secrets scan (`check`) and build/test/recipe (`plugin`) on every pull request and on
+pushes to `main` / `dev`. Agent-oriented project notes live in [`AGENT.md`](AGENT.md).
 
 ## Trying the recipe
 
@@ -52,17 +52,36 @@ status check is named `check`. Agent-oriented project notes live in [`AGENT.md`]
 3. Run a short OpenClaw session and confirm the demo ledger (or the person who issued the key)
    saw the requests.
 
-## Releasing (maintainers)
+## Branches and releases
+
+```text
+feature/fix/deps ──PR──▶ dev ──release PR──▶ main ──tag vX.Y.Z──▶ npm + ClawHub
+```
+
+| Branch | Takes PRs from | Required checks | Notes |
+| --- | --- | --- | --- |
+| `dev` | any branch (incl. Dependabot) | `check`, `plugin` | Integration branch |
+| `main` | `dev` only | `check`, `plugin`, `base-branch`, 1 approval, up to date | Release branch |
+
+Both branches are protected: no force-push, no deletion. `base-branch`
+(`.github/workflows/branch-policy.yml`) fails any PR into `main` whose head is not this repo's
+`dev`. `v*` tags are protected by the `release-tags` ruleset: only admins can create them, and
+nobody can move or delete one.
 
 A release is a **tag**, not a merge — same rule as the other Cruise public clients.
 
-1. On `main`, bump `package.json` `version` and update `CHANGELOG.md`.
-2. Ensure `check` and `plugin` CI are green.
-3. Tag and push: `git tag vX.Y.Z && git push origin vX.Y.Z`.
-4. Workflow `.github/workflows/release.yml` runs `npm run pack:check`, then publishes to npm
-   via OIDC Trusted Publisher (optional break-glass `NPM_TOKEN`) and optionally ClawHub
-   (`CLAWHUB_PUBLISH_TOKEN`). `clawhub-publish` uses the same ClawHub secret for the official
-   Hub reusable workflow.
+1. In a PR into `dev`, bump `package.json` `version` and move `CHANGELOG.md`'s `Unreleased`
+   notes under the new version.
+2. Open the release PR `dev` → `main` titled `Release X.Y.Z`; merge once `check`, `plugin` and
+   `base-branch` are green.
+3. Tag the merge commit on `main` and push:
+   `git checkout main && git pull && git tag vX.Y.Z && git push origin vX.Y.Z`.
+4. `release.yml` checks the tag matches `package.json` and points at a commit on `main`, runs
+   `npm run pack:check`, then publishes to npm via OIDC Trusted Publisher (optional break-glass
+   `NPM_TOKEN`). `clawhub-publish.yml` publishes the same tag to ClawHub
+   (`CLAWHUB_PUBLISH_TOKEN`).
+5. After the release, confirm `dev` and `main` point at the same tree. If `main` moved on its own
+   (an admin bypass), open a PR `main` → `dev` to sync before the next feature lands.
 
-Never publish from a merge alone. Verify the packed tarball locally with
-`npm run pack:check` before tagging.
+Never publish from a merge alone, and never move a published tag — cut the next patch version
+instead. Verify the packed tarball locally with `npm run pack:check` before tagging.

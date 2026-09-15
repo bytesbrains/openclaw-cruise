@@ -1,6 +1,6 @@
 {
   "name": "@bytesbrains/openclaw-cruise-provider",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "BytesBrains Cruise provider plugin for OpenClaw — live GET /v1/models discovery.",
   "license": "SEE LICENSE IN LICENSE.txt",
   "type": "module",
@@ -46,6 +46,7 @@
     "@types/node": "^26.5.1",
     "openclaw": "2026.9.4",
     "typescript": "^7.0.2",
+    "vite": "^8.3.0",
     "vitest": "^5.0.0"
   },
   "engines": {

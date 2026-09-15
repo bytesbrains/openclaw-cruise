@@ -21,14 +21,17 @@ npm run check:recipe   # validates examples/openclaw.json5
 npm run secrets:scan   # gitleaks (requires gitleaks on PATH)
 ```
 
-CI job `check` runs the secrets scan on every PR and on pushes to `main` / `dev`.
+CI jobs `check` (secrets scan) and `plugin` (build/test/recipe) run on every PR and on pushes to
+`main` / `dev`.
 
 ## Conventions a change must honour
 
 - **Never commit a Cruise key** (`cru_live_…`, `cru_demo_…`, `cru_test_…`, `cru_svc_…`) or any
   provider credential. Keys live in the environment or a secret manager.
 - **No telemetry, no second host.** Traffic only to the configured Cruise base URL.
-- Prefer PRs into `dev` (or `main` for a hotfix). Do not force-push protected branches.
+- **Open PRs with base `dev`** — features, fixes, docs and hotfixes alike. Only the `dev` → `main`
+  release PR targets `main` (enforced by the `base-branch` check). Do not force-push `main` or
+  `dev`.
 - Keep the tree **public-safe**. Do not paste internal gateway design, private trackers, or
   unpublished roadmap. Public product behaviour (base URL, key shapes, `/v1/models`, refusal
   codes) is fine.
@@ -38,8 +41,9 @@ CI job `check` runs the secrets scan on every PR and on pushes to `main` / `dev`
   frozen full catalogue in the npm artifact.
 - Branch Cruise refusals on `error.code` (`budget_exhausted`, `wallet_exhausted`,
   `measurement_stale`, …), not on HTTP status alone.
-- A release is a **tag**, not a merge. Workflow `release` publishes on `v*` tags only
-  (`npm run pack:check` first).
+- A release is a **tag on `main`**, not a merge. Workflow `release` publishes to npm on `v*` tags
+  that point at `main` (`npm run pack:check` first); `clawhub-publish` publishes the same tag to
+  ClawHub. Never create, move or delete a `v*` tag unless asked — see `CONTRIBUTING.md`.
 
 ## Layout
 
@@ -49,7 +53,10 @@ CI job `check` runs the secrets scan on every PR and on pushes to `main` / `dev`
 | `openclaw.plugin.json` | Manifest, static seed lanes, auth choice |
 | `examples/openclaw.json5` | Manual recipe (demo host) |
 | `test/` | Projection unit tests |
-| `.github/workflows/ci.yml` | Required `check` job (gitleaks) |
+| `.github/workflows/ci.yml` | Required `check` (gitleaks) and `plugin` (build/test) jobs |
+| `.github/workflows/branch-policy.yml` | Required `base-branch` job: PRs into `main` come from `dev` |
+| `.github/workflows/release.yml` | npm publish on `v*` tags on `main` |
+| `.github/workflows/clawhub-publish.yml` | ClawHub publish on `v*` tags |
 
 ## Open work
 

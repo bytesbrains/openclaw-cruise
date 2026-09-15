@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.0.3 — 2026-09-15
+
+First npm release since 0.0.1: `0.0.2` reached ClawHub but not npm.
+
+- Fix the `release.yml` private guard: it tested `node -p`'s exit code (always 0), so every
+  tag release failed before `npm publish` and `0.0.2` never reached npm (#21).
+- ClawHub publishes only through `clawhub-publish.yml`; `release.yml` is npm-only, so the
+  two workflows no longer race to push the same version.
+- `release.yml` refuses a tag whose commit is not on `main`.
+- Add `vite` as a dev dependency; vitest 5 needs it as a peer, and CI tests failed without it.
+- `resolveCruiseDynamicModel` spreads `CRUISE_MODEL_COMPAT` instead of repeating its fields.
+- Branch flow is enforced: PRs go into `dev` (Dependabot included), only `dev` may open a PR
+  into `main` (`base-branch` check), and `v*` tags are protected (#23).
+
 ## 0.0.2 — 2026-09-15
 
 - First release cut by the tag workflow: npm publish uses OIDC Trusted Publisher
