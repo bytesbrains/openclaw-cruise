@@ -57,5 +57,13 @@ status check is named `check`. Agent-oriented project notes live in [`AGENT.md`]
 
 ## Releasing (maintainers)
 
-A release is a **tag**, not a merge — same rule as the other Cruise public clients. Cut a tag
-only when the README / plugin artifact you intend to ship is on `main` and `check` is green.
+A release is a **tag**, not a merge — same rule as the other Cruise public clients.
+
+1. On `main`, bump `package.json` `version`, remove `"private": true`, update `CHANGELOG.md`.
+2. Ensure `check` and `plugin` CI are green.
+3. Tag and push: `git tag vX.Y.Z && git push origin vX.Y.Z`.
+4. Workflow `.github/workflows/release.yml` runs `npm run pack:check`, then publishes to npm
+   (`NPM_TOKEN`) and optionally ClawHub (`CLAWHUB_TOKEN`).
+
+Never publish from a merge alone. Verify the packed tarball locally with
+`npm run pack:check` before tagging.
