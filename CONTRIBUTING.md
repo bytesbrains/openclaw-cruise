@@ -22,17 +22,14 @@ git clone https://github.com/bytesbrains/openclaw-cruise.git
 cd openclaw-cruise
 ```
 
-`npm ci` (when a `package.json` is present) runs `prepare`, which points `core.hooksPath` at
-`.githooks/`. **pre-commit** runs `gitleaks protect` on the staged diff; **pre-push** runs
-`gitleaks detect` over full history — both with `.gitleaks.toml` (Cruise key shapes included).
-Those hooks require [gitleaks](https://github.com/gitleaks/gitleaks) (`brew install gitleaks`)
-and fail closed if it is missing — on purpose.
+`npm ci` runs `prepare`, which points `core.hooksPath` at `.githooks/`. **pre-commit**
+runs `gitleaks protect` on the staged diff; **pre-push** runs `gitleaks detect` over full
+history — both with `.gitleaks.toml` (Cruise key shapes included). Those hooks require
+[gitleaks](https://github.com/gitleaks/gitleaks) (`brew install gitleaks`) and fail closed
+if it is missing — on purpose.
 
-Until there is a Node package here, enable the hooks once after clone:
-
-```sh
-git config core.hooksPath .githooks
-```
+Published package: [`@bytesbrains/openclaw-cruise-provider`](https://www.npmjs.com/package/@bytesbrains/openclaw-cruise-provider)
+([ClawHub](https://clawhub.ai/bytesbrains/plugins/openclaw-cruise-provider)).
 
 ## Checks
 
