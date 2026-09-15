@@ -8,4 +8,4 @@
 - [ ] `npm run build` passes
 - [ ] `npm test` / secrets scan considered (or CI `check` will cover it)
 - [ ] Docs/examples updated if behaviour users see changed
-- [ ] Prefer PR into `dev` unless this is a hotfix for `main`
+- [ ] Base branch is `dev` (only the `dev` → `main` release PR targets `main`)
